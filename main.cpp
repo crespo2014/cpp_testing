@@ -47,7 +47,6 @@ public:
 		return "Reject"[pos];
 	}
 	static const unsigned len = sizeof("Reject") - 1;
-	//static const unsigned hash = StringHash<StringReject>::get();
 };
 
 template<class type>
@@ -64,6 +63,11 @@ void fnc(type v)
 
 int main()
 {
+	uint64_t id = 0;
+	switch(id)
+	{
+	case StringHash<StringReject>::get():break;
+	}
 
 	const static uint64_t a = StringHash<StringReject>::get();
 	printf("%lu", a);
