@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 static constexpr size_t InitialFNV = 2166136261U;
-static constexpr size_t FNVMultiple = 16777619;
+static constexpr size_t FNVMultiple = 16777619U;
 
 #define GET_SZIE(str) sizeof(str)
 
@@ -13,7 +13,7 @@ template<class T>
 class StringHash
 {
 public:
-	template<unsigned prev, unsigned pos>
+	template<uint64_t prev, unsigned pos>
 	static constexpr uint64_t compute()
 	{
 		return (prev ^ T::template get<pos>()) * FNVMultiple;
@@ -35,19 +35,19 @@ public:
 	{
 		return hash<InitialFNV, 0, T::len>();
 	}
-
 };
 
-class StringReject
+
+uint64_t getHash(const char* str)
 {
-public:
-	template<unsigned pos>
-	static constexpr uint64_t get()
+	uint64_t v = InitialFNV;
+	for (;*str; str++ )
 	{
-		return "Reject"[pos];
+		v = (v ^ (uint64_t)(*str)) * FNVMultiple;
 	}
-	static const unsigned len = sizeof("Reject") - 1;
-};
+	return v;
+}
+
 
 #define DEFINE_STRING_OBJECT(id, type, str, ...) \
 	struct String##id {  template<unsigned pos>  static constexpr uint64_t get() { return str[pos]; }  static const unsigned len = sizeof(str) - 1; };
@@ -108,21 +108,29 @@ public:
         MACRO( HostName                ,MFTYPE_ASCII  ,"HostName"                     ,false ) \
 
 #define STRING_HASH_CASE(id, type, str, ...) \
-    case StringHash<String##id>::get():break;
+    case StringHash<String##id>::get(): printf(str);printf("\r\n");break;
+
+#define TEST_HASH(id, type, str, ...) \
+	findStr(getHash(str));
+
+#define PRINT_HASH(id, type, str, ...) \
+	printf("%llX %llX \r\n", getHash(str), StringHash<String##id>::get());
 
 FOR_EACH_FIELD(DEFINE_STRING_OBJECT)
 
-int main()
+void findStr(uint64_t hash)
 {
-	uint64_t id = 0;
-	switch(id)
+	switch(hash)
 	{
 	FOR_EACH_FIELD(STRING_HASH_CASE)
-	case StringHash<StringReject>::get():break;
 	}
+}
 
-	const static uint64_t a = StringHash<StringReject>::get();
-	printf("%lu", a);
+int main()
+{
+	findStr(getHash("lester"));
+	//FOR_EACH_FIELD(PRINT_HASH)
+	FOR_EACH_FIELD(TEST_HASH)
 	return 0;
 }
 
