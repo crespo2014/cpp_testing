@@ -1,6 +1,9 @@
 #include "stdio.h"
 #include <type_traits>
 #include <stdint.h>
+#include <vector>
+#include <string.h>
+#include <algorithm>
 
 static constexpr size_t InitialFNV = 2166136261U;
 static constexpr size_t FNVMultiple = 16777619U;
@@ -38,7 +41,7 @@ public:
 };
 
 
-uint64_t getHash(const char* str)
+inline uint64_t getHash(const char* str)
 {
 	uint64_t v = InitialFNV;
 	for (;*str; str++ )
@@ -108,29 +111,75 @@ uint64_t getHash(const char* str)
         MACRO( HostName                ,MFTYPE_ASCII  ,"HostName"                     ,false ) \
 
 #define STRING_HASH_CASE(id, type, str, ...) \
-    case StringHash<String##id>::get(): printf(str);printf("\r\n");break;
+    case StringHash<String##id>::get(): return str;
 
 #define TEST_HASH(id, type, str, ...) \
-	findStr(getHash(str));
+	if (findStr(getHash(str)) == 0) abort();
+
+#define TEST_SEARCH(id, type, str, ...) \
+	if (findStr(StaticString(str, sizeof(str)- 1)) == 0) abort();
 
 #define PRINT_HASH(id, type, str, ...) \
 	printf("%llX %llX \r\n", getHash(str), StringHash<String##id>::get());
 
+#define ADD_TO_VECTOR(id, type, str, ...) \
+    str_vector.emplace_back(str);
+
+
 FOR_EACH_FIELD(DEFINE_STRING_OBJECT)
 
-void findStr(uint64_t hash)
+class StaticString
+{
+public:
+	StaticString(const char* str) : size(strlen(str)) , str(str) {}
+	StaticString(const char* str, unsigned len) : size(len) , str(str) {}
+
+	unsigned size;
+	const char* str;
+	bool operator<(const StaticString& s) { return size < s.size || (size == s.size && strcmp(str, s.str) < 0); }
+};
+
+static std::vector<StaticString> str_vector;
+
+void fillVector()
+{
+	FOR_EACH_FIELD(ADD_TO_VECTOR)
+    std::sort(str_vector.begin(), str_vector.end());
+}
+
+const char* findStr(const StaticString& str)
+{
+	auto it = std::lower_bound(str_vector.begin(), str_vector.end(), str);
+	if (it != str_vector.end())
+		return it->str;
+	return 0;
+}
+
+const char* findStr(uint64_t hash)
 {
 	switch(hash)
 	{
 	FOR_EACH_FIELD(STRING_HASH_CASE)
 	}
+	return 0;
 }
+
+inline void TestSearchByHash()
+{
+	FOR_EACH_FIELD(TEST_HASH);
+}
+
+inline void TestSearchByString()
+{
+	FOR_EACH_FIELD(TEST_SEARCH);
+}
+
 
 int main()
 {
-	findStr(getHash("lester"));
-	//FOR_EACH_FIELD(PRINT_HASH)
-	FOR_EACH_FIELD(TEST_HASH)
+	fillVector();
+	TestSearchByHash();
+	TestSearchByString();
 	return 0;
 }
 
